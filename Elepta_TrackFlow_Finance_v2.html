@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Elepta TrackFlow Finance</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+body{background:#090d16;color:#f8fafc;font-family:Arial,sans-serif}.panel{background:#0f172acc;border:1px solid #ffffff14}.inp{background:#1e293b;border:1px solid #ffffff1f;color:#fff}.inp:focus{border-color:#C29A3B;outline:none}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="sticky top-0 z-40 bg-slate-950/90 border-b border-slate-800">
+<div class="max-w-7xl mx-auto p-4 flex justify-between items-center">
+<div><b class="text-lg">Elepta <span class="text-amber-300">TrackFlow</span></b><p class="text-xs text-slate-400">Finance & Partner Portal</p></div>
+<div class="flex gap-2"><button onclick="openFx()" class="px-3 py-2 rounded-lg border border-amber-500/30 text-amber-300 text-xs">₹ FX Settings</button><button onclick="exportExcel()" class="px-3 py-2 rounded-lg bg-emerald-700 text-xs">Export Excel</button><button onclick="openEntry()" class="px-3 py-2 rounded-lg text-xs font-bold" style="background:#C29A3B;color:#0C1F1C">+ Log Entry</button></div>
+</div></header>
+
+<main class="max-w-7xl mx-auto p-4 space-y-6">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+<div class="panel rounded-xl p-4"><p class="text-xs text-slate-400">GROSS REVENUE</p><b id="rev" class="text-2xl">£0.00</b></div>
+<div class="panel rounded-xl p-4"><p class="text-xs text-slate-400">EXPENSES</p><b id="exp" class="text-2xl text-rose-400">£0.00</b></div>
+<div class="panel rounded-xl p-4"><p class="text-xs text-slate-400">NET PROFIT</p><b id="profit" class="text-2xl text-emerald-400">£0.00</b><p id="margin" class="text-xs text-slate-400"></p></div>
+<div class="panel rounded-xl p-4"><p class="text-xs text-slate-400">CAPITAL</p><b id="capital" class="text-2xl text-indigo-400">£0.00</b></div>
+</div>
+
+<div class="panel rounded-xl p-5">
+<div class="flex justify-between mb-4"><div><b>Partner Settlement Accounts — 50 / 50</b><p class="text-xs text-slate-400">Profit share + personal expenses + capital − drawings</p></div><span id="fxlabel" class="text-xs text-amber-300">INR rate not set</span></div>
+<div class="grid md:grid-cols-2 gap-4">
+<div class="bg-slate-900 rounded-xl p-4"><b>Fahad</b><div class="text-xs mt-3 space-y-2"><p class="flex justify-between"><span>50% Profit</span><span id="fa-profit"></span></p><p class="flex justify-between"><span>Expenses owed</span><span id="fa-exp"></span></p><p class="flex justify-between"><span>Capital</span><span id="fa-cap"></span></p><p class="flex justify-between"><span>Drawings</span><span id="fa-draw"></span></p><p class="flex justify-between border-t border-slate-700 pt-2 font-bold"><span>Claimable</span><span id="fa-total" class="text-emerald-400"></span></p></div></div>
+<div class="bg-slate-900 rounded-xl p-4"><b>Shaan</b><div class="text-xs mt-3 space-y-2"><p class="flex justify-between"><span>50% Profit</span><span id="sh-profit"></span></p><p class="flex justify-between"><span>Expenses owed</span><span id="sh-exp"></span></p><p class="flex justify-between"><span>Capital</span><span id="sh-cap"></span></p><p class="flex justify-between"><span>Drawings</span><span id="sh-draw"></span></p><p class="flex justify-between border-t border-slate-700 pt-2 font-bold"><span>Claimable</span><span id="sh-total" class="text-indigo-400"></span></p></div></div>
+</div></div>
+
+<div class="panel rounded-xl p-5">
+<div class="flex flex-col sm:flex-row justify-between gap-3 mb-4"><div><b>Live Financial Ledger</b><p class="text-xs text-slate-400">Firebase live database</p></div><div class="flex gap-2"><input id="search" oninput="render()" placeholder="Search..." class="inp rounded-lg p-2 text-xs"><select id="filter" onchange="render()" class="inp rounded-lg p-2 text-xs"><option>ALL</option><option>REVENUE</option><option>EXPENSE</option><option value="CAPITAL">CAPITAL / DRAWING</option></select></div></div>
+<div class="overflow-x-auto"><table class="w-full min-w-[900px] text-xs"><thead><tr class="text-slate-400 border-b border-slate-700"><th class="p-2 text-left">Date</th><th class="p-2 text-left">Client / Description</th><th class="p-2">Order ID</th><th class="p-2">Country</th><th class="p-2">Type</th><th class="p-2">Handled By</th><th class="p-2 text-right">Original</th><th class="p-2 text-right">GBP</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+</main>
+
+<div id="entry" class="fixed inset-0 hidden bg-slate-950/80 z-50 items-center justify-center p-3"><div class="panel rounded-2xl p-5 max-w-2xl w-full max-h-[92vh] overflow-y-auto">
+<div class="flex justify-between mb-4"><b>Log Transaction</b><button onclick="closeEntry()">✕</button></div>
+<form id="form" class="space-y-3 text-xs">
+<div class="grid sm:grid-cols-2 gap-3"><label>Type<select id="cat" class="inp w-full rounded-lg p-3 mt-1"><option value="REVENUE">Revenue</option><option value="EXPENSE">Expense</option><option value="CAPITAL_A">Capital - Fahad</option><option value="CAPITAL_B">Capital - Shaan</option><option value="DRAW_A">Drawing - Fahad</option><option value="DRAW_B">Drawing - Shaan</option></select></label><label>Date<input id="date" type="date" required class="inp w-full rounded-lg p-3 mt-1"></label></div>
+<div class="grid sm:grid-cols-2 gap-3"><label>Client / Supplier<input id="party" class="inp w-full rounded-lg p-3 mt-1"></label><label>Order ID<input id="order" placeholder="ELP-2026-001" class="inp w-full rounded-lg p-3 mt-1"></label></div>
+<label>Description<input id="desc" required class="inp w-full rounded-lg p-3 mt-1"></label>
+<div class="grid sm:grid-cols-2 gap-3"><label>Country<select id="country" class="inp w-full rounded-lg p-3 mt-1"><option>UK</option><option>USA</option><option>Canada</option><option>India</option><option>Qatar</option><option>Saudi Arabia</option><option>Other</option></select></label><label>Finance Category<select id="fcat" class="inp w-full rounded-lg p-3 mt-1"><option>Client Revenue</option><option>Formation / Filing Fee</option><option>Registered / Virtual Office</option><option>White Label Provider</option><option>Website / Hosting / Domain</option><option>Marketing / Advertising</option><option>Software / Subscription</option><option>Professional / Compliance</option><option>Bank / Payment Fees</option><option>Refund</option><option>Other</option></select></label></div>
+<div class="grid grid-cols-2 gap-3"><label>Amount<input id="amount" type="number" min="0.01" step="0.01" required class="inp w-full rounded-lg p-3 mt-1"></label><label>Currency<select id="currency" class="inp w-full rounded-lg p-3 mt-1"><option>GBP</option><option>INR</option><option>USD</option><option>SAR</option><option>QAR</option></select></label></div>
+<div id="preview" class="hidden p-3 rounded-lg bg-amber-500/10 text-amber-200"></div>
+<div class="grid sm:grid-cols-2 gap-3"><label>Paid / Received By<select id="payer" class="inp w-full rounded-lg p-3 mt-1"><option value="BUSINESS">Elepta Business Account</option><option value="PARTNER_A">Fahad Personal Funds</option><option value="PARTNER_B">Shaan Personal Funds</option></select></label><label>Payment Method<select id="method" class="inp w-full rounded-lg p-3 mt-1"><option>Bank Transfer</option><option>Card</option><option>UPI</option><option>Cash</option><option>PayPal</option><option>Other</option></select></label></div>
+<label>Notes<textarea id="notes" class="inp w-full rounded-lg p-3 mt-1"></textarea></label>
+<div class="flex justify-end gap-2 pt-3"><button type="button" onclick="closeEntry()" class="px-4">Cancel</button><button class="px-5 py-3 rounded-lg font-bold" style="background:#C29A3B;color:#0C1F1C">Save</button></div>
+</form></div></div>
+
+<div id="fx" class="fixed inset-0 hidden bg-slate-950/80 z-50 items-center justify-center p-3"><div class="panel rounded-2xl p-5 max-w-md w-full">
+<div class="flex justify-between"><b>INR Conversion Settings</b><button onclick="closeFx()">✕</button></div>
+<p class="text-xs text-slate-400 mt-3">Enter the current market rate for £1 in INR. TrackFlow adds ₹1 automatically.</p>
+<label class="text-xs block mt-4">Market rate: £1 = ₹<input id="market" type="number" step="0.01" class="inp w-full rounded-lg p-3 mt-1" placeholder="118"></label>
+<div id="fxpreview" class="p-3 bg-amber-500/10 rounded-lg text-amber-300 text-xs mt-3"></div>
+<div class="flex justify-end mt-4"><button onclick="saveFx()" class="px-5 py-3 rounded-lg font-bold" style="background:#C29A3B;color:#0C1F1C">Save Rate</button></div>
+</div></div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import{getFirestore,collection,onSnapshot,addDoc,deleteDoc,doc}from"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+const firebaseConfig={apiKey:"AIzaSyBkUMKvQJNo3mKx4ha9I_aa6Lc5igJBNuY",authDomain:"elepta-track-flow.firebaseapp.com",projectId:"elepta-track-flow",storageBucket:"elepta-track-flow.firebasestorage.app",messagingSenderId:"702572292370",appId:"1:702572292370:web:41912fb684db4b38972bcb"};
+const db=getFirestore(initializeApp(firebaseConfig)),ref=collection(db,"entries");window.entries=[];
+onSnapshot(ref,s=>{window.entries=s.docs.map(d=>({docId:d.id,...d.data()})).sort((a,b)=>new Date(b.date)-new Date(a.date));calc();render()});
+window.removeEntry=async id=>{if(confirm("Delete this entry?"))await deleteDoc(doc(db,"entries",id))};
+document.getElementById("form").addEventListener("submit",async e=>{
+e.preventDefault();const amount=Number(el("amount").value),currency=el("currency").value;let gbp;
+try{gbp=convert(amount,currency)}catch(x){alert(x.message);openFx();return}
+const category=el("cat").value;let fc=el("fcat").value;if(category==="REVENUE")fc="Client Revenue";if(category.includes("CAPITAL"))fc="Owner Contribution";if(category.includes("DRAW"))fc="Owner Withdrawal";
+const mr=Number(localStorage.getItem("eleptaInrMarketRate")||0);
+await addDoc(ref,{date:el("date").value,party:el("party").value.trim(),orderId:el("order").value.trim(),desc:el("desc").value.trim(),country:el("country").value,financeCategory:fc,category,amount,currency,gbpAmount:Number(gbp.toFixed(4)),payer:el("payer").value,paymentMethod:el("method").value,notes:el("notes").value.trim(),inrMarketRate:currency==="INR"?mr:null,inrEleptaRate:currency==="INR"?mr+1:null,createdAt:new Date().toISOString()});closeEntry();el("form").reset();today()});
+</script>
+
+<script>
+const el=id=>document.getElementById(id),otherFx={GBP:1,USD:.78,SAR:.21,QAR:.21};
+function money(v){return"£"+Number(v||0).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function today(){el("date").value=new Date().toISOString().slice(0,10)}
+function convert(a,c){if(c==="INR"){const m=Number(localStorage.getItem("eleptaInrMarketRate")||0);if(!m)throw Error("Set the INR market rate first.");return a/(m+1)}return a*(otherFx[c]||1)}
+function openEntry(){today();el("entry").classList.remove("hidden");el("entry").classList.add("flex");preview()}
+function closeEntry(){el("entry").classList.add("hidden");el("entry").classList.remove("flex")}
+function openFx(){el("market").value=localStorage.getItem("eleptaInrMarketRate")||"";fxPreview();el("fx").classList.remove("hidden");el("fx").classList.add("flex")}
+function closeFx(){el("fx").classList.add("hidden");el("fx").classList.remove("flex")}
+function fxPreview(){const m=Number(el("market").value||0);el("fxpreview").textContent=m?`Market ₹${m.toFixed(2)} + ₹1 = Elepta rate ₹${(m+1).toFixed(2)} per £1`:"Enter the market rate."}
+function saveFx(){const m=Number(el("market").value);if(!m||m<=0)return alert("Enter a valid rate.");localStorage.setItem("eleptaInrMarketRate",m);rateLabel();closeFx();preview()}
+function rateLabel(){const m=Number(localStorage.getItem("eleptaInrMarketRate")||0);el("fxlabel").textContent=m?`£1 = ₹${(m+1).toFixed(2)} (market + ₹1)`:"INR rate not set"}
+function preview(){if(el("currency").value!=="INR"){el("preview").classList.add("hidden");return}el("preview").classList.remove("hidden");const m=Number(localStorage.getItem("eleptaInrMarketRate")||0),a=Number(el("amount").value||0);el("preview").textContent=m?`₹${a.toLocaleString("en-IN")} ÷ ₹${(m+1).toFixed(2)} = ${money(a/(m+1))}`:"Set INR rate before saving."}
+el("market").addEventListener("input",fxPreview);el("amount").addEventListener("input",preview);el("currency").addEventListener("change",preview);
+
+function calc(){let r=0,x=0,ca=0,cb=0,da=0,db=0,ea=0,eb=0;(window.entries||[]).forEach(i=>{let v=Number(i.gbpAmount)||0;if(i.category==="REVENUE")r+=v;else if(i.category==="EXPENSE"){x+=v;if(i.payer==="PARTNER_A")ea+=v;if(i.payer==="PARTNER_B")eb+=v}else if(i.category==="CAPITAL_A")ca+=v;else if(i.category==="CAPITAL_B")cb+=v;else if(i.category==="DRAW_A")da+=v;else if(i.category==="DRAW_B")db+=v});let p=r-x,s=p/2;el("rev").textContent=money(r);el("exp").textContent=money(x);el("profit").textContent=money(p);el("margin").textContent=`Margin: ${r?(p/r*100).toFixed(1):0}%`;el("capital").textContent=money(ca+cb);[["fa",ca,da,ea],["sh",cb,db,eb]].forEach(([k,c,d,e])=>{el(k+"-profit").textContent=money(s);el(k+"-exp").textContent="+"+money(e);el(k+"-cap").textContent="+"+money(c);el(k+"-draw").textContent="-"+money(d);el(k+"-total").textContent=money(s+e+c-d)})}
+window.calc=calc;
+function safe(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function render(){let q=el("search").value.toLowerCase(),f=el("filter").value,arr=(window.entries||[]).filter(i=>{let ok=[i.desc,i.party,i.orderId,i.country].join(" ").toLowerCase().includes(q);if(f==="ALL")return ok;if(f==="CAPITAL")return ok&&/CAPITAL|DRAW/.test(i.category);return ok&&i.category===f});el("rows").innerHTML=arr.length?arr.map(i=>`<tr class="border-b border-slate-800"><td class="p-2">${safe(i.date)}</td><td class="p-2"><b>${safe(i.party||"")}</b><br><span class="text-slate-400">${safe(i.desc)}</span></td><td class="p-2 text-center">${safe(i.orderId||"—")}</td><td class="p-2 text-center">${safe(i.country||"—")}</td><td class="p-2 text-center">${safe(i.category)}</td><td class="p-2 text-center">${i.payer==="PARTNER_A"?"Fahad":i.payer==="PARTNER_B"?"Shaan":"Elepta"}</td><td class="p-2 text-right">${Number(i.amount||0).toLocaleString()} ${safe(i.currency)}</td><td class="p-2 text-right font-bold">${money(i.gbpAmount)}</td><td><button onclick="removeEntry('${i.docId}')" class="text-rose-400">Delete</button></td></tr>`).join(""):`<tr><td colspan="9" class="p-6 text-center text-slate-500">No entries</td></tr>`}
+window.render=render;
+
+function exportExcel(){let a=[...(window.entries||[])].sort((x,y)=>new Date(x.date)-new Date(y.date));if(!a.length)return alert("No data to export.");
+let tx=a.map((e,n)=>({"Date":e.date,"Txn ID":"TXN-"+String(n+1).padStart(5,"0"),"Type":e.category==="REVENUE"?"Income":e.category==="EXPENSE"?"Expense":e.category,"Category":e.financeCategory||"Other","Client / Supplier":e.party||"","Order ID":e.orderId||"","Country":e.country||"","Description":e.desc||"","Payment Method":e.paymentMethod||"","Paid / Received By":e.payer==="PARTNER_A"?"Fahad":e.payer==="PARTNER_B"?"Shaan":"Company","Original Amount":Number(e.amount||0),"Currency":e.currency,"INR Market Rate":e.inrMarketRate??"","INR Elepta Rate (+₹1)":e.inrEleptaRate??"","Amount (£)":Number(e.gbpAmount||0),"Income (£)":e.category==="REVENUE"?Number(e.gbpAmount||0):0,"Expense (£)":e.category==="EXPENSE"?Number(e.gbpAmount||0):0,"Notes":e.notes||""}));
+let om={};a.filter(e=>e.orderId).forEach(e=>{om[e.orderId]??={id:e.orderId,date:e.date,client:e.party||"",country:e.country||"",service:e.desc||"",rev:0,cost:0};if(e.category==="REVENUE")om[e.orderId].rev+=+e.gbpAmount||0;if(e.category==="EXPENSE")om[e.orderId].cost+=+e.gbpAmount||0});let orders=Object.values(om).map(o=>({"Order ID":o.id,"Order Date":o.date,"Client":o.client,"Country":o.country,"Service / Package":o.service,"Revenue (£)":o.rev,"Direct Cost (£)":o.cost,"Gross Profit (£)":o.rev-o.cost,"Margin %":o.rev?(o.rev-o.cost)/o.rev:0}));
+let mm={};a.forEach(e=>{let m=(e.date||"").slice(0,7);if(!m)return;mm[m]??={r:0,x:0,orders:new Set};if(e.category==="REVENUE")mm[m].r+=+e.gbpAmount||0;if(e.category==="EXPENSE")mm[m].x+=+e.gbpAmount||0;if(e.orderId)mm[m].orders.add(e.orderId)});let pnl=Object.keys(mm).sort().map(m=>({"Month":m,"Revenue (£)":mm[m].r,"Expenses (£)":mm[m].x,"Net Profit (£)":mm[m].r-mm[m].x,"Profit Margin %":mm[m].r?(mm[m].r-mm[m].x)/mm[m].r:0,"Orders":mm[m].orders.size}));
+let r=0,x=0;a.forEach(e=>{if(e.category==="REVENUE")r+=+e.gbpAmount||0;if(e.category==="EXPENSE")x+=+e.gbpAmount||0});let net=r-x;
+function ps(code){let ex=0,c=0,d=0;a.forEach(e=>{let v=+e.gbpAmount||0;if(e.category==="EXPENSE"&&e.payer===code)ex+=v;if(code==="PARTNER_A"&&e.category==="CAPITAL_A"||code==="PARTNER_B"&&e.category==="CAPITAL_B")c+=v;if(code==="PARTNER_A"&&e.category==="DRAW_A"||code==="PARTNER_B"&&e.category==="DRAW_B")d+=v});return{ex,c,d,total:net/2+ex+c-d}}let pa=ps("PARTNER_A"),pb=ps("PARTNER_B");
+let partners=[{"Partner":"Fahad","50% Profit Share (£)":net/2,"Personal Expenses (£)":pa.ex,"Capital (£)":pa.c,"Drawings (£)":pa.d,"Net Claimable (£)":pa.total},{"Partner":"Shaan","50% Profit Share (£)":net/2,"Personal Expenses (£)":pb.ex,"Capital (£)":pb.c,"Drawings (£)":pb.d,"Net Claimable (£)":pb.total}];
+let m=Number(localStorage.getItem("eleptaInrMarketRate")||0),dash=[["ELEPTA FINANCE DASHBOARD","Value"],["Total Revenue",r],["Total Expenses",x],["Net Profit",net],["Profit Margin",r?net/r:0],["Fahad Claimable",pa.total],["Shaan Claimable",pb.total],["INR Market Rate",m],["INR Elepta Rate (+₹1)",m?m+1:""]];
+let wb=XLSX.utils.book_new();[["Dashboard",XLSX.utils.aoa_to_sheet(dash)],["Transactions",XLSX.utils.json_to_sheet(tx)],["Client Orders",XLSX.utils.json_to_sheet(orders)],["Partner Accounts",XLSX.utils.json_to_sheet(partners)],["Monthly P&L",XLSX.utils.json_to_sheet(pnl)]].forEach(([n,s])=>XLSX.utils.book_append_sheet(wb,s,n));XLSX.writeFile(wb,`Elepta_Finance_Tracker_${new Date().toISOString().slice(0,10)}.xlsx`)}
+rateLabel();today();
+</script></body></html>
